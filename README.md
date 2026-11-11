@@ -11,7 +11,7 @@ The buying section shows two explicitly labelled research subtotals: CAD 54,483 
 ## Included
 
 - All 280 actual collection photographs, extracted unchanged from the owner’s research reports.
-- Search, series and category filters, saved favourites, and direct links to an entry.
+- Search, series and category filters, CAD price sorting and ranges, price-evidence and photo-contents filters, saved favourites, and direct links to an entry.
 - Packaging and accessory notes, added outfits, and edition uncertainty.
 - Optional market references labelled by geography, source type, event date, condition, source access and CAD conversion.
 - Enquiry text to copy and a downloadable CSV item list.
@@ -19,6 +19,8 @@ The buying section shows two explicitly labelled research subtotals: CAD 54,483 
 The latest revision is used when the same research batch occurs twice. Distinct collection entries with similar characters remain separate. Internal collection IDs, import hashes and administrative metadata are omitted from the public catalogue.
 
 The imported research does not contain final valuations. Market comparisons are retained as context, with no invented lot price or automatic sum. `askingPriceCAD` and `contactUrl` are initially `null`; enquiries direct visitors to message the seller where the catalogue was shared.
+
+Price controls and card labels use the first recorded comparison with an observed source, a per-unit quantity of one, a non-negative finite CAD amount, and no known wrong-condition match. They preserve the existing source order. Entries without an eligible CAD comparison sort last in both directions and are excluded by an active price range. Other comparisons remain available in item details. These browsing references are not individual asking prices or the filtered whole-collection subtotal.
 
 ## Publish on GitHub Pages
 

@@ -12,7 +12,8 @@
   const storageKey = 'thomass-sonny-collection-saved-v1';
   let saved = new Set();
   try { const stored = JSON.parse(localStorage.getItem(storageKey) || '[]'); if (Array.isArray(stored)) saved = new Set(stored.filter(code => byCode.has(code))); } catch { /* Browsing remains available when storage is disabled. */ }
-  const state = { query: '', category: 'all', family: 'all', sort: 'code', savedOnly: false, references: false, limit: 48 };
+  const state = { query: '', category: 'all', family: 'all', sort: 'code', priceMin: null, priceMax: null, reference: 'all', contents: 'all', savedOnly: false, references: false, limit: 48 };
+  const priceReferences = new Map(items.map(item => [item.code, item.comparisons.find(source => source.access === 'observed' && source.basis === 'per-unit' && source.quantity === 1 && source.conditionMatch !== 'wrong' && source.cad !== null && source.cad !== '' && Number.isFinite(Number(source.cad)) && Number(source.cad) >= 0) || null]));
   const searchText = new Map(items.map(item => [item.code, normalise([item.code, item.name, item.series, item.family, item.year, item.packaging, item.category].join(' '))]));
   const cards = new Map([...document.querySelectorAll('.collection-card')].map(card => [card.dataset.code, card]));
   const itemDialog = $('item-dialog');
@@ -80,18 +81,37 @@
   }
 
   function referenceMarkup(item) {
-    const source = item.comparisons[0];
-    if (!source) return '<span>No priced reference recorded</span>';
-    const amount = source.cad !== null ? `C${money(source.cad)}` : `${esc(source.currency)} ${esc(source.price)}`;
+    const source = priceReferences.get(item.code);
+    if (!source) return `<span>No per-figure CAD reference</span>${item.comparisons.length ? '<span class="source-context">Other comparisons in details</span>' : ''}`;
+    const amount = `C${money(source.cad)}`;
     return `<strong>${amount} <span>reference</span></strong><span>${esc(marketLabel(source))} ${esc(typeLabel(source))}</span><span class="source-context">${esc(eventLabel(source))}${source.conditionMatch !== 'same' ? ' · condition differs / unconfirmed' : ''}</span>`;
+  }
+
+  function compareItems(a, b) {
+    if (state.sort.startsWith('price-')) {
+      const aSource = priceReferences.get(a.code);
+      const bSource = priceReferences.get(b.code);
+      if (!aSource || !bSource) return Number(!aSource) - Number(!bSource) || a.code.localeCompare(b.code);
+      return (Number(aSource.cad) - Number(bSource.cad)) * (state.sort === 'price-desc' ? -1 : 1) || a.code.localeCompare(b.code);
+    }
+    return state.sort === 'name' ? a.name.localeCompare(b.name) : state.sort === 'series' ? a.family.localeCompare(b.family) || a.name.localeCompare(b.name) : a.code.localeCompare(b.code);
   }
 
   function render() {
     const tokens = normalise(state.query).split(/\s+/).filter(Boolean);
+    const priceActive = state.priceMin !== null || state.priceMax !== null;
+    const negativePrice = (state.priceMin !== null && state.priceMin < 0) || (state.priceMax !== null && state.priceMax < 0);
+    const priceRangeInvalid = negativePrice || (state.priceMin !== null && state.priceMax !== null && state.priceMin > state.priceMax);
+    const priceControlsActive = state.sort.startsWith('price-') || priceActive || state.reference !== 'all';
+    const showReferences = state.references || priceControlsActive;
     filtered = items.filter(item => {
       const categoryMatches = state.category === 'all' || (state.category === 'secret' ? item.secret : state.category === 'custom' ? item.custom : item.category === state.category);
-      return categoryMatches && (state.family === 'all' || item.family === state.family) && (!state.savedOnly || saved.has(item.code)) && tokens.every(token => searchText.get(item.code).includes(token));
-    }).sort((a, b) => state.sort === 'name' ? a.name.localeCompare(b.name) : state.sort === 'series' ? a.family.localeCompare(b.family) || a.name.localeCompare(b.name) : a.code.localeCompare(b.code));
+      const source = priceReferences.get(item.code);
+      const priceMatches = !priceActive || (source && (state.priceMin === null || Number(source.cad) >= state.priceMin) && (state.priceMax === null || Number(source.cad) <= state.priceMax));
+      const referenceMatches = state.reference === 'all' || (state.reference === 'priced' ? !!source : state.reference === 'unpriced' ? !source : source?.type === state.reference);
+      const contentsMatch = state.contents === 'all' || (state.contents === 'multiple' ? item.multiple : !item.multiple);
+      return !priceRangeInvalid && priceMatches && referenceMatches && contentsMatch && categoryMatches && (state.family === 'all' || item.family === state.family) && (!state.savedOnly || saved.has(item.code)) && tokens.every(token => searchText.get(item.code).includes(token));
+    }).sort(compareItems);
     const visible = filtered.slice(0, state.limit);
     const visibleCodes = new Set(visible.map(item => item.code));
     cards.forEach((card, code) => { card.hidden = !visibleCodes.has(code); });
@@ -101,27 +121,42 @@
     const total = filtered.length;
     $('results-count').textContent = `${state.savedOnly ? 'Saved · ' : ''}${total} ${total === 1 ? 'entry' : 'entries'}${total && total > visible.length ? ` · showing ${visible.length}` : ''}`;
     $('empty-state').hidden = total !== 0;
-    $('empty-title').textContent = state.savedOnly && !saved.size ? 'A little space for your favourites.' : 'No little angels found.';
-    $('empty-text').textContent = state.savedOnly && !saved.size ? 'Tap a heart on any piece to save it here. Your list stays in this browser.' : 'Try another name or series, or clear the filters to see everyone.';
+    $('empty-title').textContent = priceRangeInvalid ? 'Check the price range.' : state.savedOnly && !saved.size ? 'A little space for your favourites.' : 'No little angels found.';
+    $('empty-text').textContent = priceRangeInvalid ? (negativePrice ? 'Prices need to be zero or greater.' : 'The minimum price needs to be no higher than the maximum price.') : state.savedOnly && !saved.size ? 'Tap a heart on any piece to save it here. Your list stays in this browser.' : 'Try another name, series or price range, or clear the filters to see everyone.';
     $('load-more-wrap').hidden = !total;
     $('load-more').hidden = visible.length >= total;
     $('visible-summary').textContent = `${visible.length} of ${total} entries shown`;
     $('saved-view').setAttribute('aria-pressed', String(state.savedOnly));
     $('saved-actions').hidden = !state.savedOnly || !saved.size;
-    $('reference-explainer').hidden = !state.references;
-    $('reset').hidden = !state.query && state.category === 'all' && state.family === 'all' && !state.savedOnly;
+    $('reference-explainer').hidden = !state.references || priceControlsActive;
+    $('price-filter-note').hidden = !priceControlsActive;
+    $('show-references').checked = showReferences;
+    $('show-references').disabled = priceControlsActive;
+    $('price-range-error').hidden = !priceRangeInvalid;
+    $('price-range-error').textContent = negativePrice ? 'Prices must be zero or greater.' : 'Minimum price must be no higher than maximum price.';
+    $('price-min').setAttribute('aria-invalid', String(priceRangeInvalid));
+    $('price-max').setAttribute('aria-invalid', String(priceRangeInvalid));
+    const extraFilterCount = Number(priceActive) + Number(state.reference !== 'all') + Number(state.contents !== 'all');
+    $('extra-filter-count').textContent = extraFilterCount;
+    $('extra-filter-count').hidden = !extraFilterCount;
+    $('reset').hidden = !state.query && state.category === 'all' && state.family === 'all' && state.sort === 'code' && !extraFilterCount && !state.savedOnly;
     document.querySelectorAll('[data-filter]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.filter === state.category)));
     document.querySelectorAll('[data-reference]').forEach(el => {
-      el.hidden = !state.references;
-      if (state.references && !el.dataset.ready) { el.innerHTML = referenceMarkup(byCode.get(el.dataset.reference)); el.dataset.ready = 'true'; }
+      el.hidden = !showReferences;
+      if (showReferences && !el.dataset.ready) { el.innerHTML = referenceMarkup(byCode.get(el.dataset.reference)); el.dataset.ready = 'true'; }
     });
     updateSaved();
   }
 
   function resetFilters() {
-    Object.assign(state, { query: '', category: 'all', family: 'all', savedOnly: false, limit: 48 });
+    Object.assign(state, { query: '', category: 'all', family: 'all', sort: 'code', priceMin: null, priceMax: null, reference: 'all', contents: 'all', savedOnly: false, references: false, limit: 48 });
     $('search').value = '';
     $('series-filter').value = 'all';
+    $('sort').value = 'code';
+    $('price-min').value = '';
+    $('price-max').value = '';
+    $('reference-filter').value = 'all';
+    $('contents-filter').value = 'all';
     render();
   }
 
@@ -198,7 +233,15 @@
 
   $('search').addEventListener('input', event => { state.query = event.target.value; state.limit = 48; render(); });
   $('series-filter').addEventListener('change', event => { state.family = event.target.value; state.limit = 48; render(); });
-  $('sort').addEventListener('change', event => { state.sort = event.target.value; render(); });
+  $('sort').addEventListener('change', event => { state.sort = event.target.value; state.limit = 48; render(); });
+  ['min', 'max'].forEach(bound => $('price-' + bound).addEventListener('input', event => {
+    const value = event.target.valueAsNumber;
+    state[bound === 'min' ? 'priceMin' : 'priceMax'] = Number.isFinite(value) ? value : null;
+    state.limit = 48;
+    render();
+  }));
+  $('reference-filter').addEventListener('change', event => { state.reference = event.target.value; state.limit = 48; render(); });
+  $('contents-filter').addEventListener('change', event => { state.contents = event.target.value; state.limit = 48; render(); });
   document.querySelectorAll('[data-filter]').forEach(button => button.addEventListener('click', () => { state.category = button.dataset.filter; state.limit = 48; render(); }));
   $('show-references').addEventListener('change', event => { state.references = event.target.checked; render(); });
   $('reset').addEventListener('click', resetFilters);
