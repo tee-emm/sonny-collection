@@ -1,11 +1,11 @@
 {
   "title": "Thomass’s Sonny Angel collection",
   "updated": "2026-11-11",
-  "saleMode": "Full collection",
+  "saleMode": "Full collection only",
   "location": "Toronto, Canada",
   "askingPriceCAD": null,
   "contactUrl": null,
-  "enquiryMessage": "Hi! I’m interested in your Sonny Angel collection. Could you share the asking price for the full lot, what’s included, and the collection or shipping options?",
+  "enquiryMessage": "Hi! I’m interested in buying your entire Sonny Angel collection as one lot. Could you share the asking price, confirm everything included, and let me know the collection or shipping options?",
   "items": [
     {
       "code": "SA-0117",
@@ -15049,5 +15049,19 @@
         }
       ]
     }
-  ]
+  ],
+  "lotReferenceSummary": {
+    "currency": "CAD",
+    "asOf": "2026-11-11",
+    "status": "reference-subtotals-only",
+    "raw": {
+      "amount": "54483.18",
+      "entryCount": 266
+    },
+    "filtered": {
+      "amount": "37913.25",
+      "entryCount": 203
+    },
+    "note": "Comparison subtotals only. No reliable whole-lot sale value has been established. Most sources are asking prices; event dates and condition matches vary. Neither subtotal covers the entire collection."
+  }
 }

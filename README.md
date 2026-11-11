@@ -2,6 +2,12 @@
 
 A static buyer catalogue for one personal collection. The catalogue contains **280 photographed entries** from 28 research batches. Some entries show multiple figures, so the count is an entry count rather than a confirmed figure quantity.
 
+## Full-lot sale and research totals
+
+The collection is offered as one complete lot; individual pieces are not offered separately. Enquiry text and saved-item messages consistently refer to the full lot.
+
+The buying section shows two explicitly labelled research subtotals: CAD 54,483 across 266 entries (raw references) and CAD 37,913 across 203 entries (filtered per-unit references). Neither is an asking price, appraisal or expected proceeds. Source quality, date and condition limitations remain visible. The underlying snapshot is recorded in `lotReferenceSummary` in `collection.json`.
+
 ## Included
 
 - All 280 actual collection photographs, extracted unchanged from the owner’s research reports.

@@ -20,6 +20,10 @@ const families = [...new Set(data.items.map(item => item.family))].sort((a, b) =
 const options = families.map(family => `<option value="${esc(family)}">${esc(family)} (${data.items.filter(item => item.family === family).length})</option>`).join('');
 let html = await readFile(path.join(root, 'tools/template.html'), 'utf8');
 const replacements = {
+  '__RAW_REFERENCE_COUNT__': String(data.lotReferenceSummary.raw.entryCount),
+  '__RAW_REFERENCE_TOTAL__': 'C$' + Math.round(Number(data.lotReferenceSummary.raw.amount)).toLocaleString('en-CA'),
+  '__FILTERED_REFERENCE_COUNT__': String(data.lotReferenceSummary.filtered.entryCount),
+  '__FILTERED_REFERENCE_TOTAL__': 'C$' + Math.round(Number(data.lotReferenceSummary.filtered.amount)).toLocaleString('en-CA'),
   '__CATALOGUE_CARDS__': cards,
   '__CATALOGUE_DATA__': JSON.stringify(data).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029'),
   '__FILTER_BUTTONS__': filters,
