@@ -4,7 +4,7 @@ A static buyer catalogue for one personal collection. The catalogue contains **2
 
 ## Full-lot sale and research totals
 
-The collection is offered as one complete lot; individual pieces are not offered separately. Enquiry text and saved-item messages consistently refer to the full lot.
+The catalogue is geared toward finding a buyer for the collection as a lot. Enquiry text and saved-item messages invite questions and offers for the full collection.
 
 The buying section shows two explicitly labelled research subtotals: CAD 54,483 across 266 entries (raw references) and CAD 37,913 across 203 entries (filtered per-unit references). Neither is an asking price, appraisal or expected proceeds. Source quality, date and condition limitations remain visible. The underlying snapshot is recorded in `lotReferenceSummary` in `collection.json`.
 
