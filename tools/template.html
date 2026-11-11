@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f4ec">
+  <meta name="description" content="Browse Thomass’s personal Sonny Angel collection: 280 photographed entries, series, packaging notes and labelled market references. Enquire about the full collection.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta property="og:title" content="A little world, ready for its next home · Sonny Angel collection">
+  <meta property="og:description" content="280 photographed catalogue entries from one personal collection. Browse the pieces and enquire about the full lot.">
+  <meta property="og:type" content="website">
+  <title>Thomass’s Sonny Angel Collection</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#collection">Skip to the collection</a>
+  <header class="site-header">
+    <a class="wordmark" href="#top" aria-label="Sonny Angel collection home"><img src="./favicon.svg" width="38" height="38" alt=""><span>the little cabinet<small>THOMASS’S SONNY ANGEL COLLECTION</small></span></a>
+    <nav aria-label="Main navigation"><a href="#collection">The collection</a><a href="#buying">Buying the lot</a><button class="saved-link" id="saved-view" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z"/></svg><span>Saved</span><b id="saved-count">0</b></button></nav>
+  </header>
+
+  <main id="top">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy"><p class="eyebrow"><span class="status-dot"></span> A PERSONAL COLLECTION · TORONTO</p><h1 id="hero-title">A little world,<br><em>ready for its<br> next home.</em></h1><p class="hero-intro">From tiny fruit hats to secret Robbys. Explore my Sonny Angel collection, one photographed piece at a time.</p><div class="hero-actions"><a class="button primary" href="#collection">Meet the collection <span aria-hidden="true"><span class="arrow-icon down" aria-hidden="true"></span></span></a><a class="text-link" href="#buying">Enquire about the lot <span aria-hidden="true"><span class="arrow-icon" aria-hidden="true"></span></span></a></div><div class="hero-note"><span>280 catalogue entries</span><span>Actual collection photos</span></div></div>
+      <div class="hero-shelf" aria-label="A few pieces from the collection">
+        <button class="hero-photo hero-one" type="button" data-open="SA-0252" aria-label="View Bug’s World caterpillar"><span class="photo-corner">THE TINY DETAILS</span><img src="./assets/sa-0252.jpg" alt="Pink and green Sonny Angel caterpillar holding an apple" width="222" height="570" fetchpriority="high"><span class="photo-caption">Bug’s World <i>2022</i></span></button>
+        <button class="hero-photo hero-two" type="button" data-open="SA-0149" aria-label="View Circus secret rabbit"><span class="photo-corner">A LITTLE MAGIC</span><img src="./assets/sa-0149.jpg" alt="Sonny Angel rabbit popping out of a blue magician’s hat" width="278" height="570" fetchpriority="high"><span class="photo-caption">Circus secret rabbit <i>2019</i></span></button>
+        <div class="shelf-label"><span aria-hidden="true"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2v28M2 16h28M6 6l20 20M6 26 26 6"/></svg></span> small figures.<br>so much personality.</div>
+      </div>
+    </section>
+
+    <div class="collection-strip"><div class="wrap"><span>OFFERED AS ONE COLLECTION</span><span>Browse the details. Find your favourites.</span><a href="#buying">Ask about the full lot <span aria-hidden="true"><span class="arrow-icon" aria-hidden="true"></span></span></a></div></div>
+
+    <section class="catalogue wrap" id="collection" aria-labelledby="collection-title">
+      <div class="section-heading"><div><p class="eyebrow">TAKE A CLOSER LOOK</p><h2 id="collection-title">Every little character.</h2></div><p>Explore by series, spot the added outfits,<br>or save a few favourites to come back to.</p></div>
+      <div class="catalogue-tools" id="catalogue-tools">
+        <div class="search-row"><label class="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span class="sr-only">Search the collection</span><input id="search" type="search" placeholder="Search rabbit, Robby, Halloween…" autocomplete="off"></label><label class="select-box"><span class="sr-only">Filter by series</span><select id="series-filter"><option value="all">All series</option>__SERIES_OPTIONS__</select></label><label class="select-box sort-select"><span class="sr-only">Sort the collection</span><select id="sort"><option value="code">Catalogue order</option><option value="name">Name A–Z</option><option value="series">Series A–Z</option></select></label></div>
+        <div class="filter-row" role="group" aria-label="Browse collection categories">__FILTER_BUTTONS__<button type="button" class="filter" data-filter="secret" aria-pressed="false">Robby &amp; secrets <span>__SECRET_COUNT__</span></button><button type="button" class="filter" data-filter="custom" aria-pressed="false">Added outfits <span>__CUSTOM_COUNT__</span></button></div>
+      </div>
+      <div class="results-line"><p id="results-count" role="status" aria-live="polite">280 catalogue entries</p><div class="results-actions"><label class="reference-toggle"><input type="checkbox" id="show-references"><span>Show price references</span></label><button id="reset" class="text-button" type="button" hidden>Clear filters</button></div></div>
+      <p class="reference-explainer" id="reference-explainer" hidden>References are third-party prices gathered during research, shown in CAD where a documented conversion exists. Dates, source access and differences in condition appear in each entry. The asking price for this collection is available on enquiry.</p>
+      <div class="saved-actions" id="saved-actions" hidden><p>Your favourites are saved in this browser. They don’t reserve a piece.</p><button class="text-button" type="button" id="copy-saved">Copy saved item list <span aria-hidden="true"><span class="arrow-icon" aria-hidden="true"></span></span></button></div>
+      <div class="collection-grid" id="collection-grid">__CATALOGUE_CARDS__</div>
+      <div class="empty-state" id="empty-state" hidden><span aria-hidden="true">♡</span><h3 id="empty-title">No little angels found.</h3><p id="empty-text">Try another name or series, or clear the filters to see everyone.</p><button class="button secondary" id="empty-reset" type="button">See the whole collection</button></div>
+      <div class="load-more" id="load-more-wrap" hidden><button class="button secondary" id="load-more" type="button">Show more entries <span aria-hidden="true">↓</span></button><p id="visible-summary"></p></div>
+      <noscript><p class="notice">The full collection is shown below. Enable JavaScript for searching, saved favourites, and detailed price references. You can also <a href="./collection.csv" download>download the item list</a>.</p></noscript>
+    </section>
+
+    <section class="buying-section" id="buying" aria-labelledby="buying-title"><div class="wrap buying-grid"><div><p class="eyebrow">A NEW HOME FOR THE COLLECTION</p><h2 id="buying-title">Interested in<br><em>the whole little world?</em></h2><p class="buying-intro">I’m sharing this catalogue with potential buyers of the full collection. Get in touch to discuss the lot price, contents, and collection or shipping arrangements.</p><button class="button primary" type="button" data-enquire>Enquire about the collection <span aria-hidden="true"><span class="arrow-icon" aria-hidden="true"></span></span></button><p class="contact-note">Message me where this catalogue was shared.<br>You can copy an enquiry or a list of your saved item codes.</p></div><div class="buyer-notes"><div><span>01</span><section><h3>What you see is my collection</h3><p>Photos show the owned pieces. Packaging, accessories and added clothing vary; each entry includes notes about what is pictured.</p></section></div><div><span>02</span><section><h3>A catalogue entry can show more than one figure</h3><p>There are 280 photographed entries. Some photos contain multiple figures, so the final contents of the lot should be confirmed together.</p></section></div><div><span>03</span><section><h3>Price references come with context</h3><p>Market comparisons are optional to browse. Each is labelled as a sold reference or asking price, with dates and condition differences available in the details.</p></section></div><a class="download-link" href="./collection.csv" download>Download the collection list <span>CSV <span aria-hidden="true"><span class="arrow-icon" aria-hidden="true"></span></span></span></a></div></div></section>
+  </main>
+  <footer class="site-footer wrap"><a class="footer-brand" href="#top">the little cabinet <span aria-hidden="true"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2v28M2 16h28M6 6l20 20M6 26 26 6"/></svg></span></a><p>A personal Sonny Angel collection.<br>Photographs from the owner · Updated 11 November 2026.</p><button class="text-button" id="share-catalogue" type="button">Share this catalogue <span aria-hidden="true"><span class="arrow-icon" aria-hidden="true"></span></span></button></footer>
+
+  <dialog id="item-dialog" class="item-dialog" aria-labelledby="detail-title"><button class="dialog-close icon-button" id="close-item" type="button" aria-label="Close item details">×</button><div id="item-detail"></div><div class="detail-navigation"><button type="button" id="previous-item" class="text-button">← Previous</button><span id="detail-position"></span><button type="button" id="next-item" class="text-button">Next →</button></div></dialog>
+  <dialog id="enquiry-dialog" class="enquiry-dialog" aria-labelledby="enquiry-title"><button class="dialog-close icon-button" id="close-enquiry" type="button" aria-label="Close enquiry">×</button><p class="eyebrow">LET’S TALK ABOUT THE COLLECTION</p><h2 id="enquiry-title">A new home<br>starts with hello.</h2><p>Send me a message on the platform where I shared this catalogue. Ask about the full lot price, what’s included, and collection or shipping.</p><label for="enquiry-text">A message you can copy</label><textarea id="enquiry-text" rows="5" readonly></textarea><button class="button primary" id="copy-enquiry" type="button">Copy enquiry <span aria-hidden="true"><span class="arrow-icon" aria-hidden="true"></span></span></button><p class="fine-print">This catalogue doesn’t take payments or reserve items. Arrangements are agreed directly with the seller.</p></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <script type="application/json" id="catalogue-data">__CATALOGUE_DATA__</script>
+</body>
+</html>
