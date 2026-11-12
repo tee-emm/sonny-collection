@@ -1,6 +1,7 @@
 import { cp, mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const dist = path.join(root, 'dist');
@@ -19,7 +20,11 @@ const filters = categories.map((category, index) => {
 const families = [...new Set(data.items.map(item => item.family))].sort((a, b) => a.localeCompare(b));
 const options = families.map(family => `<option value="${esc(family)}">${esc(family)} (${data.items.filter(item => item.family === family).length})</option>`).join('');
 let html = await readFile(path.join(root, 'tools/template.html'), 'utf8');
+const appVersion = createHash('sha256').update(await readFile(path.join(root, 'app.js'))).update(await readFile(path.join(root, 'buyer-list.js'))).digest('hex').slice(0, 12);
+const styleVersion = createHash('sha256').update(await readFile(path.join(root, 'styles.css'))).digest('hex').slice(0, 12);
 const replacements = {
+  '__APP_VERSION__': appVersion,
+  '__STYLE_VERSION__': styleVersion,
   '__RAW_REFERENCE_COUNT__': String(data.lotReferenceSummary.raw.entryCount),
   '__RAW_REFERENCE_TOTAL__': 'C$' + Math.round(Number(data.lotReferenceSummary.raw.amount)).toLocaleString('en-CA'),
   '__FILTERED_REFERENCE_COUNT__': String(data.lotReferenceSummary.filtered.entryCount),

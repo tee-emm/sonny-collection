@@ -51,6 +51,8 @@ Commit the updated root `index.html`, `collection.json`, `collection.csv`, scrip
 
 The layout source is `tools/template.html`, presentation is `styles.css`, and browser interactions are `app.js`. There are no package dependencies.
 
+The build adds content-based versions to the script and stylesheet URLs. The browser loads the buyer-list helper with the same script version, so a fresh page does not combine new markup with a cached older calculation module.
+
 ## Evidence limits
 
 The site reformats existing research; it does not independently recheck marketplace availability or authenticate owned figures. Source timestamps are research timestamps, not proof of recent sales. Unknown dates and uncertain identification remain visible. The user’s source and date preferences are preserved in the ordering and labels of the evidence.

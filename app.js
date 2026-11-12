@@ -1,4 +1,4 @@
-import { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList } from './buyer-list.js';
+const { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList } = await import(`./buyer-list.js${new URL(import.meta.url).search}`);
 
 (() => {
   'use strict';
