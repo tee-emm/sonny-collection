@@ -95,3 +95,26 @@ test('exports include the estimate, while importing recalculates using current c
   const recalculated = estimateBuyerList(currentItems, new Map([['SA-0117', { cad: '400' }]]));
   assert.equal(recalculated.totalCAD, 400);
 });
+
+test('sold pieces stay identifiable in older lists but are excluded from totals and quote counts', () => {
+  const selected = [{ ...pieces[0], availability: 'sold' }, pieces[1]];
+  const estimate = estimateBuyerList(selected, new Map([['SA-0117', { cad: '375' }], ['SA-0149', { cad: '100' }]]));
+  assert.equal(estimate.totalCAD, 100);
+  assert.equal(estimate.pricedCount, 1);
+  assert.equal(estimate.unpricedCount, 0);
+  assert.equal(estimate.soldCount, 1);
+  assert.equal(estimate.entries[0].reason, 'sold');
+  const output = JSON.parse(exportBuyerList(selected, undefined, estimate));
+  assert.equal(output.items[0].availability, 'sold');
+  assert.equal(output.items[0].estimatedCostCAD, null);
+  assert.equal(output.estimatedCost.soldEntries, 1);
+  const imported = importBuyerList(JSON.stringify(output), known);
+  assert.deepEqual(imported.codes, pieces.map(item => item.code));
+});
+
+test('a list of only sold pieces has no total and does not ask for quotes', () => {
+  const estimate = estimateBuyerList(pieces.map(item => ({ ...item, availability: 'sold' })), new Map());
+  assert.equal(estimate.totalCAD, null);
+  assert.equal(estimate.unpricedCount, 0);
+  assert.equal(estimate.soldCount, 2);
+});

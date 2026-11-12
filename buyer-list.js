@@ -7,15 +7,17 @@ export function estimateBuyerList(selectedItems, references) {
     const source = references.get(item.code);
     const raw = source?.cad;
     const amount = typeof raw === 'number' || (typeof raw === 'string' && raw.trim()) ? Number(raw) : NaN;
-    const priced = !item.multiple && Number.isFinite(amount) && amount >= 0;
-    return { code: item.code, cents: priced ? Math.round((amount + Number.EPSILON) * 100) : null, reason: item.multiple ? 'group' : priced ? null : 'missing-reference' };
+    const sold = item.availability === 'sold';
+    const priced = !sold && !item.multiple && Number.isFinite(amount) && amount >= 0;
+    return { code: item.code, cents: priced ? Math.round((amount + Number.EPSILON) * 100) : null, reason: sold ? 'sold' : item.multiple ? 'group' : priced ? null : 'missing-reference' };
   });
   const priced = entries.filter(entry => entry.cents !== null);
   return {
     currency: 'CAD',
     totalCAD: priced.length ? priced.reduce((total, entry) => total + entry.cents, 0) / 100 : null,
     pricedCount: priced.length,
-    unpricedCount: entries.length - priced.length,
+    unpricedCount: entries.filter(entry => entry.cents === null && entry.reason !== 'sold').length,
+    soldCount: entries.filter(entry => entry.reason === 'sold').length,
     entries,
   };
 }
@@ -27,8 +29,8 @@ export function exportBuyerList(selectedItems, exportedAt = new Date().toISOStri
     version: 1,
     collection: BUYER_LIST_COLLECTION,
     exportedAt,
-    ...(estimate ? { estimatedCost: { currency: 'CAD', amount: estimate.totalCAD, pricedEntries: estimate.pricedCount, unpricedEntries: estimate.unpricedCount, note: 'Recorded comparison-price estimate. Excludes unpriced entries, shipping, tax and fees; final price to be agreed with the seller.' } } : {}),
-    items: selectedItems.map(({ code, name, series }) => ({ code, name, series, ...(estimate ? { estimatedCostCAD: costs.get(code)?.cents === null || !costs.has(code) ? null : costs.get(code).cents / 100 } : {}) })),
+    ...(estimate ? { estimatedCost: { currency: 'CAD', amount: estimate.totalCAD, pricedEntries: estimate.pricedCount, unpricedEntries: estimate.unpricedCount, soldEntries: estimate.soldCount, note: 'Recorded comparison-price estimate. Excludes sold and unpriced entries, shipping, tax and fees; final price to be agreed with the seller.' } } : {}),
+    items: selectedItems.map(({ code, name, series, availability }) => ({ code, name, series, availability: availability === 'sold' ? 'sold' : 'available', ...(estimate ? { estimatedCostCAD: costs.get(code)?.cents === null || !costs.has(code) ? null : costs.get(code).cents / 100 } : {}) })),
   }, null, 2) + '\n';
 }
 

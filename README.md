@@ -72,3 +72,9 @@ Run `npm test` for the transfer-format and merge tests, alongside the normal che
 My list shows a CAD estimate and a price for each eligible selected entry, using the same recorded per-unit comparisons as price sorting. Totals add rounded cents and count each selected code once. Missing prices are excluded and the display gives the priced-entry coverage; group photos need a confirmed quantity and quote before they can be included. A wholly unpriced list shows “Price to confirm”. Shipping, tax and fees are excluded.
 
 The copyable seller message and JSON export include the estimate and any missing coverage. Imported prices are ignored and recalculated from current catalogue references. These are market-reference estimates, not seller asking prices or guaranteed quotes.
+
+### Crossing sold pieces off
+
+After a confirmed sale, the owner can forward the buyer’s exported JSON or copied list to the assistant to cross off those exact item codes. Sold entries remain visible with a struck-through name and Sold label. Buyers cannot add them to new lists, and older saved lists exclude them from estimates. The collection CSV includes availability.
+
+`availability.json` stores only sold item codes, separately from the research and photographs. Follow [UPDATE_GUIDE.md](UPDATE_GUIDE.md) to preview, apply, publish or reverse a list. Buyer enquiries and list imports never change public availability automatically.
