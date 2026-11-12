@@ -1,6 +1,33 @@
 export const BUYER_LIST_FORMAT = 'sonny-collection-buyer-list';
 export const BUYER_LIST_COLLECTION = 'tee-emm/sonny-collection';
 
+const shareCode = /^SA-\d{4}$/;
+const maximumSharedEntries = 1000;
+
+export function createBuyerListLink(baseUrl, codes) {
+  const unique = [...new Set(codes)].sort();
+  if (!unique.length || unique.length > maximumSharedEntries || unique.some(code => !shareCode.test(code))) throw new Error('Choose at least one valid catalogue entry to share.');
+  const url = new URL(baseUrl);
+  if (!['http:', 'https:'].includes(url.protocol)) throw new Error('A buyer list needs a website link.');
+  url.search = '';
+  url.hash = `list=v1:${unique.join(',')}`;
+  return url.href;
+}
+
+export function readBuyerListLink(value, knownCodes) {
+  const url = new URL(value);
+  if (!url.hash.startsWith('#list=')) return null;
+  if (url.hash.length > 20000) throw new Error('This shared list is too large to open. Ask the buyer to copy a new link.');
+  let payload;
+  try { payload = decodeURIComponent(url.hash.slice(6)); }
+  catch { throw new Error('This shared list link is damaged. Ask the buyer to copy a new link.'); }
+  if (!payload.startsWith('v1:')) throw new Error('This shared list link uses an unsupported version. Ask the buyer to copy a new link.');
+  const codes = payload.slice(3).split(',');
+  if (!codes.length || codes.length > maximumSharedEntries || codes.some(code => !shareCode.test(code))) throw new Error('This shared list link is incomplete or invalid. Ask the buyer to copy a new link.');
+  const unique = [...new Set(codes)];
+  return { codes: unique.filter(code => knownCodes.has(code)), unknownCodes: unique.filter(code => !knownCodes.has(code)), duplicates: codes.length - unique.length };
+}
+
 export function estimateBuyerList(selectedItems, references) {
   const uniqueItems = [...new Map(selectedItems.map(item => [item.code, item])).values()];
   const entries = uniqueItems.map(item => {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList } from '../buyer-list.js';
+import { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList, createBuyerListLink, readBuyerListLink } from '../buyer-list.js';
 
 const pieces = [
   { code: 'SA-0117', name: 'Yellow Daruma', series: 'Japanese Good Luck' },
@@ -117,4 +117,44 @@ test('a list of only sold pieces has no total and does not ask for quotes', () =
   assert.equal(estimate.totalCAD, null);
   assert.equal(estimate.unpricedCount, 0);
   assert.equal(estimate.soldCount, 2);
+});
+
+test('each selection has a portable share link with no browsing query or item hash', () => {
+  const link = createBuyerListLink('https://tee-emm.github.io/sonny-collection/?tracking=old#SA-0117', ['SA-0149', 'SA-0117', 'SA-0117']);
+  assert.equal(link, 'https://tee-emm.github.io/sonny-collection/#list=v1:SA-0117,SA-0149');
+  assert.deepEqual(readBuyerListLink(link, known), { codes: ['SA-0117', 'SA-0149'], unknownCodes: [], duplicates: 0 });
+  assert.equal(createBuyerListLink(link, ['SA-0117', 'SA-0149']), link);
+  assert.notEqual(createBuyerListLink(link, ['SA-0117']), link);
+});
+
+test('ordinary catalogue and item links are not mistaken for shared lists', () => {
+  for (const hash of ['', '#collection', '#SA-0117']) assert.equal(readBuyerListLink('https://tee-emm.github.io/sonny-collection/' + hash, known), null);
+});
+
+test('shared links report missing entries and deduplicate repeated choices', () => {
+  const parsed = readBuyerListLink('https://tee-emm.github.io/sonny-collection/#list=v1:SA-0117,SA-9999,SA-0117', known);
+  assert.deepEqual(parsed, { codes: ['SA-0117'], unknownCodes: ['SA-9999'], duplicates: 1 });
+  const encoded = readBuyerListLink('https://tee-emm.github.io/sonny-collection/#list=v1%3ASA-0117%2CSA-0149', known);
+  assert.deepEqual(encoded.codes, ['SA-0117', 'SA-0149']);
+});
+
+test('broken, oversized and unsupported share links fail without importing partial choices', () => {
+  for (const hash of ['#list=', '#list=v2:SA-0117', '#list=v1:', '#list=v1:SA-0117,', '#list=v1:SA-0117,<script>', '#list=v1:%ZZ', '#list=v1:' + Array(1001).fill('SA-0117').join(',')]) {
+    assert.throws(() => readBuyerListLink('https://tee-emm.github.io/sonny-collection/' + hash, known));
+  }
+  assert.throws(() => createBuyerListLink('https://tee-emm.github.io/sonny-collection/', []));
+  assert.throws(() => createBuyerListLink('https://tee-emm.github.io/sonny-collection/', ['unexpected']));
+  assert.throws(() => createBuyerListLink('javascript:alert(1)', ['SA-0117']));
+});
+
+test('a whole-catalogue share link fits every entry and uses current sale status for estimates', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const catalogue = JSON.parse(await readFile(new URL('../collection.json', import.meta.url), 'utf8'));
+  const codes = catalogue.items.map(item => item.code);
+  const link = createBuyerListLink('https://tee-emm.github.io/sonny-collection/', codes);
+  assert.ok(link.length < 2500);
+  assert.equal(readBuyerListLink(link, new Set(codes)).codes.length, codes.length);
+  const parsed = readBuyerListLink(createBuyerListLink(link, ['SA-0117']), known);
+  const currentItems = parsed.codes.map(code => ({ ...pieces.find(item => item.code === code), availability: 'sold' }));
+  assert.equal(estimateBuyerList(currentItems, new Map([['SA-0117', { cad: 375 }]])).totalCAD, null);
 });

@@ -78,3 +78,13 @@ The copyable seller message and JSON export include the estimate and any missing
 After a confirmed sale, the owner can forward the buyer’s exported JSON or copied list to the assistant to cross off those exact item codes. Sold entries remain visible with a struck-through name and Sold label. Buyers cannot add them to new lists, and older saved lists exclude them from estimates. The collection CSV includes availability.
 
 `availability.json` stores only sold item codes, separately from the research and photographs. Follow [UPDATE_GUIDE.md](UPDATE_GUIDE.md) to preview, apply, publish or reverse a list. Buyer enquiries and list imports never change public availability automatically.
+
+### Shareable buyer-list links
+
+**My list → Copy list link** creates a portable snapshot URL, for example `https://tee-emm.github.io/sonny-collection/#list=v1:SA-0117,SA-0149`. Different selections have different links; the same selection has a stable link regardless of selection order. The copied seller message also includes this link.
+
+Opening a link automatically shows a separate **Shared buyer list** with photographs, exact item codes, current CAD estimates and sold labels. It does not edit the recipient’s own saved list or mark anything sold. **Add these to my list** explicitly merges a shared selection without duplicates. A banner reopens the shared list after browsing a piece.
+
+Links encode item codes in the URL fragment. They need no account, backend or uploaded file, and contain no buyer identity or stored prices. Anyone with a link can see that selection. Links capture choices at the time they were copied; later edits require copying a new link. Prices and availability are recalculated from the current catalogue. Unknown entries are reported, and malformed links show a clear error without changing saved choices.
+
+The owner can forward a shared link to the assistant to review interests, or explicitly request marking those exact entries sold through the existing list workflow. Opening or forwarding an interest link alone never changes availability.

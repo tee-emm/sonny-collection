@@ -1,6 +1,6 @@
 # Crossing sold pieces off from a buyer list
 
-Buyers can send **Export list** JSON or the text from **Copy list for the seller**. The owner can forward either to the assistant and say the listed pieces have sold. Match the exact `SA-` item codes, not names: distinct entries can have the same name.
+Buyers can send a **Copy list link** URL, **Export list** JSON or the text from **Copy list for the seller**. The owner can forward any of these to the assistant to review their interests, or say the listed pieces have sold. Match the exact `SA-` item codes, not names: distinct entries can have the same name.
 
 An enquiry or saved list alone is not a completed sale. Change public availability only when the owner says to cross off, mark sold, or confirms the sale. Buyer imports only edit that visitor’s own list and cannot mark the public collection sold.
 
@@ -13,7 +13,7 @@ An enquiry or saved list alone is not a completed sale. Change public availabili
    node tools/mark-sold.mjs /absolute/path/to/received-list.json
    ```
 
-   Copied text works too, saved as a `.txt` file. Unknown codes reject the whole update. Repeated codes and already-sold entries do not cause duplicate changes.
+   Copied text or one shared buyer-list link works too, saved as a `.txt` file. A link captures the choices when copied; current prices and sold status come from the latest catalogue. Unknown codes reject the whole update. Repeated codes and already-sold entries do not cause duplicate changes.
 
 3. For the owner’s confirmed sale, apply the list:
 

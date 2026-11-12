@@ -43,6 +43,15 @@ test('sale lists are idempotent and can restore specific entries without changin
   assert.deepEqual(restored.availability.soldCodes, ['SA-0117']);
 });
 
+test('a forwarded share link identifies the same exact pieces for a later confirmed sale', () => {
+  assert.deepEqual(parseSaleList('Here is their list:\nhttps://tee-emm.github.io/sonny-collection/#list=v1:SA-0118,SA-0120', known), ['SA-0118', 'SA-0120']);
+  for (const url of ['https://example.com/sonny-collection/#list=v1:SA-0118', 'https://tee-emm.github.io/cabinet-pages/#list=v1:SA-0118', 'https://tee-emm.github.io/sonny-collection/#list=v2:SA-0118', 'https://tee-emm.github.io/sonny-collection/#list=v1:SA-9999']) {
+    assert.throws(() => parseSaleList(url, known));
+  }
+  const foreignFile = JSON.stringify({ format: 'other', items: [{ code: 'SA-0118', name: 'https://tee-emm.github.io/sonny-collection/#list=v1:SA-0118' }] });
+  assert.throws(() => parseSaleList(foreignFile, known));
+});
+
 test('the owner command previews before writing, applies a received list and reverses it', async () => {
   const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
   const fixture = await mkdtemp(path.join(tmpdir(), 'sonny-sales-'));

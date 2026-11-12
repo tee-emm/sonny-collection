@@ -1,4 +1,4 @@
-const { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList } = await import(`./buyer-list.js${new URL(import.meta.url).search}`);
+const { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList, createBuyerListLink, readBuyerListLink } = await import(`./buyer-list.js${new URL(import.meta.url).search}`);
 
 (() => {
   'use strict';
@@ -25,6 +25,9 @@ const { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList } =
   const itemDialog = $('item-dialog');
   const enquiryDialog = $('enquiry-dialog');
   const buyerListDialog = $('buyer-list-dialog');
+  const sharedListDialog = $('shared-list-dialog');
+  let sharedList = null;
+  let sharedListError = '';
   let filtered = items;
   let currentCode = null;
   let toastTimer;
@@ -33,7 +36,7 @@ const { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList } =
   const marketLabel = source => source.country === 'Canada' ? 'Canadian' : ['United States', 'United States of America'].includes(source.country) ? 'US' : source.country || 'Market unconfirmed';
   const typeLabel = source => source.type === 'sold' ? 'sold reference' : 'asking reference';
   const eventLabel = source => source.eventDate ? `${source.type === 'sold' ? 'Sold' : 'Listed'} ${date(source.eventDate)}${source.eventDate < '2026-08-10' ? ' · older than three months' : ''}` : `${source.type === 'sold' ? 'Sale' : 'Listing'} date unknown`;
-  const syncBody = () => document.body.classList.toggle('modal-open', itemDialog.open || enquiryDialog.open || buyerListDialog.open);
+  const syncBody = () => document.body.classList.toggle('modal-open', itemDialog.open || enquiryDialog.open || buyerListDialog.open || sharedListDialog.open);
 
   function notify(message) {
     $('toast').textContent = message;
@@ -80,6 +83,7 @@ const { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList } =
       if (label) label.textContent = isSaved ? 'In my list' : isSold ? 'Sold' : 'Add to my list';
     });
     renderBuyerList();
+    if (sharedListDialog.open) renderSharedList();
   }
 
   function persistSaved() {
@@ -87,35 +91,94 @@ const { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList } =
     catch { storageAvailable = false; }
   }
 
-  function renderBuyerList() {
-    const selected = [...saved].map(code => byCode.get(code));
-    const estimate = estimateBuyerList(selected, priceReferences);
+  function renderListEstimate(prefix, count, estimate) {
+    $(prefix + '-estimate').hidden = !count;
+    const availableCount = count - estimate.soldCount;
+    $(prefix + '-estimate-label').textContent = estimate.unpricedCount ? 'Estimated subtotal · priced entries' : estimate.soldCount ? 'Estimated cost · available entries' : 'Estimated cost';
+    $(prefix + '-estimate-total').textContent = !availableCount && count ? 'All entries sold' : estimate.totalCAD === null ? 'Price to confirm' : `C${money(estimate.totalCAD)}`;
+    $(prefix + '-estimate-coverage').textContent = `${estimate.pricedCount} of ${availableCount} available ${availableCount === 1 ? 'entry' : 'entries'} priced${estimate.unpricedCount ? ` · ${estimate.unpricedCount} ${estimate.unpricedCount === 1 ? 'needs' : 'need'} a quote` : ''}.${estimate.soldCount ? ` ${estimate.soldCount} sold ${estimate.soldCount === 1 ? 'entry' : 'entries'} excluded.` : ''}${estimate.entries.some(entry => entry.reason === 'group') ? ' Group photos need a confirmed quantity and price.' : ''}`;
+  }
+
+  function listRows(selected, estimate, removable = true) {
     const costs = new Map(estimate.entries.map(entry => [entry.code, entry]));
-    $('buyer-list-count').textContent = `${saved.size} ${saved.size === 1 ? 'entry' : 'entries'}`;
-    $('buyer-list-estimate').hidden = !saved.size;
-    const availableCount = saved.size - estimate.soldCount;
-    $('buyer-list-estimate-label').textContent = estimate.unpricedCount ? 'Estimated subtotal · priced entries' : estimate.soldCount ? 'Estimated cost · available entries' : 'Estimated cost';
-    $('buyer-list-estimate-total').textContent = !availableCount && saved.size ? 'All entries sold' : estimate.totalCAD === null ? 'Price to confirm' : `C${money(estimate.totalCAD)}`;
-    $('buyer-list-estimate-coverage').textContent = `${estimate.pricedCount} of ${availableCount} available ${availableCount === 1 ? 'entry' : 'entries'} priced${estimate.unpricedCount ? ` · ${estimate.unpricedCount} ${estimate.unpricedCount === 1 ? 'needs' : 'need'} a quote` : ''}.${estimate.soldCount ? ` ${estimate.soldCount} sold ${estimate.soldCount === 1 ? 'entry' : 'entries'} excluded.` : ''}${estimate.entries.some(entry => entry.reason === 'group') ? ' Group photos need a confirmed quantity and price.' : ''}`;
-    $('buyer-list-storage').textContent = storageAvailable ? 'Your list saves automatically in this browser. Export a copy to keep a backup or open it on another device.' : 'This browser cannot save your list between visits. Export a copy before leaving so you can import it next time.';
-    $('buyer-list-storage').classList.toggle('storage-unavailable', !storageAvailable);
-    $('buyer-list-empty').hidden = saved.size !== 0;
-    for (const id of ['export-buyer-list', 'copy-saved', 'view-list-catalogue']) $(id).disabled = !saved.size;
-    if (!buyerListDialog.open) return;
-    $('buyer-list-items').innerHTML = [...saved].map(code => {
-      const item = byCode.get(code);
-      const cost = costs.get(code);
+    return selected.map(item => {
+      const cost = costs.get(item.code);
       const price = cost.reason === 'sold' ? 'Sold · excluded from estimate' : cost.cents === null ? (cost.reason === 'group' ? 'Group price to confirm' : 'Price to confirm') : `C${money(cost.cents / 100)} estimated`;
-      return `<li class="buyer-list-item${cost.reason === 'sold' ? ' is-sold' : ''}"><img src="./${esc(item.image)}" width="66" height="82" alt="" loading="lazy"><div><span class="buyer-list-code">${esc(item.code)} · ${esc(item.family)}</span><a href="#${esc(item.code)}" data-open="${esc(item.code)}">${esc(item.name)}</a><span class="buyer-list-price${cost.cents === null ? ' needs-quote' : ''}">${price}</span>${item.multiple ? '<small>Multiple figures pictured</small>' : ''}</div><button type="button" class="text-button list-remove" data-save="${esc(item.code)}" data-list-remove aria-label="Remove ${esc(item.name)} from my list">Remove</button></li>`;
+      return `<li class="buyer-list-item${cost.reason === 'sold' ? ' is-sold' : ''}"><img src="./${esc(item.image)}" width="66" height="82" alt="" loading="lazy"><div><span class="buyer-list-code">${esc(item.code)} · ${esc(item.family)}</span><a href="#${esc(item.code)}" data-open="${esc(item.code)}">${esc(item.name)}</a><span class="buyer-list-price${cost.cents === null ? ' needs-quote' : ''}">${price}</span>${item.multiple ? '<small>Multiple figures pictured</small>' : ''}</div>${removable ? `<button type="button" class="text-button list-remove" data-save="${esc(item.code)}" data-list-remove aria-label="Remove ${esc(item.name)} from my list">Remove</button>` : ''}</li>`;
     }).join('');
   }
 
+  function renderBuyerList() {
+    const selected = [...saved].map(code => byCode.get(code));
+    const estimate = estimateBuyerList(selected, priceReferences);
+    $('buyer-list-count').textContent = `${saved.size} ${saved.size === 1 ? 'entry' : 'entries'}`;
+    renderListEstimate('buyer-list', saved.size, estimate);
+    $('buyer-list-storage').textContent = storageAvailable ? 'Your list saves automatically in this browser. Export a copy to keep a backup or open it on another device.' : 'This browser cannot save your list between visits. Export a copy before leaving so you can import it next time.';
+    $('buyer-list-storage').classList.toggle('storage-unavailable', !storageAvailable);
+    $('buyer-list-empty').hidden = saved.size !== 0;
+    for (const id of ['copy-buyer-link', 'export-buyer-list', 'copy-saved', 'view-list-catalogue']) $(id).disabled = !saved.size;
+    if (!saved.size) $('buyer-list-link-field').hidden = true;
+    if (saved.size && !$('buyer-list-link-field').hidden) {
+      const link = createBuyerListLink(catalogueUrl(), [...saved]);
+      $('buyer-list-url').value = link;
+      $('open-list-link').href = link;
+    }
+    if (!buyerListDialog.open) return;
+    $('buyer-list-items').innerHTML = listRows(selected, estimate);
+  }
+
   function openBuyerList() {
+    if (sharedListDialog.open) sharedListDialog.close();
     $('list-transfer-status').hidden = true;
     buyerListDialog.showModal();
     $('saved-view').setAttribute('aria-expanded', 'true');
     renderBuyerList();
     syncBody();
+  }
+
+  function sharedListUrl() {
+    return createBuyerListLink(catalogueUrl(), [...sharedList.codes, ...sharedList.unknownCodes]);
+  }
+
+  function renderSharedList() {
+    const selected = (sharedList?.codes || []).map(code => byCode.get(code));
+    const estimate = estimateBuyerList(selected, priceReferences);
+    $('shared-list-count').textContent = `${selected.length} ${selected.length === 1 ? 'entry' : 'entries'}`;
+    $('shared-list-items').innerHTML = listRows(selected, estimate, false);
+    renderListEstimate('shared-list', selected.length, estimate);
+    const unknown = sharedList?.unknownCodes.length || 0;
+    $('shared-list-warning').hidden = !sharedListError && !unknown;
+    $('shared-list-warning').textContent = sharedListError || `${unknown} ${unknown === 1 ? 'entry is' : 'entries are'} no longer in the catalogue and cannot be shown or priced.`;
+    $('shared-list-warning').classList.toggle('list-transfer-error', !!sharedListError);
+    $('copy-shared-link').disabled = !!sharedListError;
+    $('add-shared-to-list').disabled = !selected.length || selected.every(item => saved.has(item.code));
+    $('add-shared-to-list').textContent = selected.length && selected.every(item => saved.has(item.code)) ? 'Already in my list' : 'Add these to my list';
+  }
+
+  function openSharedList(updateUrl = true) {
+    if (!sharedList) return;
+    if (itemDialog.open) itemDialog.close();
+    if (buyerListDialog.open) buyerListDialog.close();
+    if (updateUrl && !sharedListError) history.replaceState(null, '', sharedListUrl());
+    renderSharedList();
+    if (!sharedListDialog.open) sharedListDialog.showModal();
+    sharedListDialog.scrollTop = 0;
+    syncBody();
+  }
+
+  function routeHash() {
+    if (window.location.hash.startsWith('#list=')) {
+      try { sharedList = readBuyerListLink(window.location.href, byCode); sharedListError = ''; }
+      catch (error) { sharedList = { codes: [], unknownCodes: [] }; sharedListError = error.message; }
+      $('shared-list-banner').hidden = false;
+      $('shared-list-banner-text').textContent = sharedListError ? 'A shared buyer list could not be opened.' : `Shared buyer list · ${sharedList.codes.length} ${sharedList.codes.length === 1 ? 'entry' : 'entries'}`;
+      openSharedList(false);
+      return;
+    }
+    if (sharedListDialog.open) sharedListDialog.close();
+    let code;
+    try { code = decodeURIComponent(window.location.hash.slice(1)); } catch { return; }
+    if (byCode.has(code)) displayItem(code); else if (itemDialog.open) itemDialog.close();
   }
 
   function listTransferStatus(message, error = false) {
@@ -270,6 +333,7 @@ const { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList } =
     const item = byCode.get(code);
     if (!item) return;
     if (buyerListDialog.open) buyerListDialog.close();
+    if (sharedListDialog.open) sharedListDialog.close();
     currentCode = code;
     const tags = [item.availability === 'sold' ? '<span class="card-tag sold-tag">Sold · no longer available</span>' : '', item.uncertain ? '<span class="card-tag uncertain">Exact edition needs confirmation</span>' : '', item.custom ? '<span class="card-tag">Added outfit / accessories</span>' : '', item.multiple ? '<span class="card-tag">Multiple figures pictured</span>' : ''].join('');
     const relative = filtered.findIndex(entry => entry.code === code);
@@ -349,6 +413,25 @@ const { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList } =
   $('load-more').addEventListener('click', () => { state.limit += 48; render(); });
   $('saved-view').addEventListener('click', openBuyerList);
   $('manage-list').addEventListener('click', openBuyerList);
+  $('copy-buyer-link').addEventListener('click', event => {
+    const link = createBuyerListLink(catalogueUrl(), [...saved]);
+    $('buyer-list-url').value = link;
+    $('open-list-link').href = link;
+    $('buyer-list-link-field').hidden = false;
+    copyText(link, event.currentTarget, 'List link copied — send it to the seller.');
+  });
+  $('view-shared-list').addEventListener('click', () => openSharedList());
+  $('close-shared-list').addEventListener('click', () => sharedListDialog.close());
+  $('browse-from-shared').addEventListener('click', () => sharedListDialog.close());
+  sharedListDialog.addEventListener('close', syncBody);
+  $('copy-shared-link').addEventListener('click', event => copyText(sharedListUrl(), event.currentTarget, 'Shared list link copied.'));
+  $('add-shared-to-list').addEventListener('click', () => {
+    const merged = mergeBuyerLists(saved, sharedList.codes);
+    saved = new Set(merged.codes);
+    persistSaved();
+    render();
+    notify(`${merged.added} ${merged.added === 1 ? 'entry added' : 'entries added'} to your own list.` + (storageAvailable ? '' : ' Export your list to keep it after this visit.'));
+  });
   $('view-list-catalogue').addEventListener('click', () => {
     buyerListDialog.close();
     resetFilters();
@@ -367,7 +450,7 @@ const { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList } =
     });
     const total = estimate.soldCount === saved.size ? 'All entries in this list are already sold.' : estimate.totalCAD === null ? 'Estimated cost: price to confirm.' : `Estimated ${estimate.unpricedCount ? 'subtotal for priced entries' : 'cost'}: C${money(estimate.totalCAD)}.`;
     const coverage = `${estimate.pricedCount} of ${saved.size - estimate.soldCount} available entries priced${estimate.unpricedCount ? `; ${estimate.unpricedCount} need a quote` : ''}.${estimate.soldCount ? ` ${estimate.soldCount} sold entries excluded.` : ''}`;
-    const message = `Hi! I’m interested in these pieces from Thomass’s Sonny Angel collection:\n\n${lines.join('\n')}\n\n${total} ${coverage}\nBased on recorded market comparisons; excludes shipping, tax and fees.\n\n${catalogueUrl()}\n\nCould you confirm availability and the final price?`;
+    const message = `Hi! I’m interested in these pieces from Thomass’s Sonny Angel collection:\n\n${lines.join('\n')}\n\n${total} ${coverage}\nBased on recorded market comparisons; excludes shipping, tax and fees.\n\n${createBuyerListLink(catalogueUrl(), [...saved])}\n\nCould you confirm availability and the final price?`;
     copyText(message, event.currentTarget, 'Buyer list copied — paste it in your message to the seller');
   });
   $('close-buyer-list').addEventListener('click', () => buyerListDialog.close());
@@ -405,15 +488,11 @@ const { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList } =
     }
     await copyText(catalogueUrl(), button, 'Catalogue link copied');
   });
-  window.addEventListener('hashchange', () => {
-    const code = decodeURIComponent(window.location.hash.slice(1));
-    if (byCode.has(code)) displayItem(code); else if (itemDialog.open) itemDialog.close();
-  });
+  window.addEventListener('hashchange', routeHash);
   if (data.askingPriceCAD !== null) {
     const note = document.querySelector('.buying-intro');
     note.textContent = `The full collection is offered at C${money(data.askingPriceCAD)}. Get in touch to confirm the contents and discuss collection or shipping arrangements.`;
   }
   render();
-  const initialCode = decodeURIComponent(window.location.hash.slice(1));
-  if (byCode.has(initialCode)) displayItem(initialCode);
+  routeHash();
 })();
