@@ -39,7 +39,7 @@ const csv = [['Item code', 'Name', 'Series', 'Year / issue', 'Photographed packa
 await writeFile(path.join(root, 'collection.csv'), '\ufeff' + csv + '\r\n');
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
-for (const file of ['index.html', 'styles.css', 'app.js', 'collection.json', 'collection.csv', 'favicon.svg', 'assets']) {
+for (const file of ['index.html', 'styles.css', 'app.js', 'buyer-list.js', 'collection.json', 'collection.csv', 'favicon.svg', 'assets']) {
   await cp(path.join(root, file), path.join(dist, file), { recursive: true });
 }
 console.log(`Built ${data.items.length} photographed entries in dist/`);

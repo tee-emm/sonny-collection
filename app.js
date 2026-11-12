@@ -1,3 +1,5 @@
+import { exportBuyerList, importBuyerList, mergeBuyerLists } from './buyer-list.js';
+
 (() => {
   'use strict';
   const data = JSON.parse(document.getElementById('catalogue-data').textContent);
@@ -11,13 +13,18 @@
   const heart = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z"/></svg>';
   const storageKey = 'thomass-sonny-collection-saved-v1';
   let saved = new Set();
-  try { const stored = JSON.parse(localStorage.getItem(storageKey) || '[]'); if (Array.isArray(stored)) saved = new Set(stored.filter(code => byCode.has(code))); } catch { /* Browsing remains available when storage is disabled. */ }
+  let storageAvailable = true;
+  try {
+    const raw = localStorage.getItem(storageKey);
+    try { const stored = JSON.parse(raw || '[]'); if (Array.isArray(stored)) saved = new Set(stored.filter(code => byCode.has(code))); } catch { /* A damaged old list does not stop browsing. */ }
+  } catch { storageAvailable = false; }
   const state = { query: '', category: 'all', family: 'all', sort: 'code', priceMin: null, priceMax: null, reference: 'all', contents: 'all', savedOnly: false, references: false, limit: 48 };
   const priceReferences = new Map(items.map(item => [item.code, item.comparisons.find(source => source.access === 'observed' && source.basis === 'per-unit' && source.quantity === 1 && source.conditionMatch !== 'wrong' && source.cad !== null && source.cad !== '' && Number.isFinite(Number(source.cad)) && Number(source.cad) >= 0) || null]));
   const searchText = new Map(items.map(item => [item.code, normalise([item.code, item.name, item.series, item.family, item.year, item.packaging, item.category].join(' '))]));
   const cards = new Map([...document.querySelectorAll('.collection-card')].map(card => [card.dataset.code, card]));
   const itemDialog = $('item-dialog');
   const enquiryDialog = $('enquiry-dialog');
+  const buyerListDialog = $('buyer-list-dialog');
   let filtered = items;
   let currentCode = null;
   let toastTimer;
@@ -26,7 +33,7 @@
   const marketLabel = source => source.country === 'Canada' ? 'Canadian' : ['United States', 'United States of America'].includes(source.country) ? 'US' : source.country || 'Market unconfirmed';
   const typeLabel = source => source.type === 'sold' ? 'sold reference' : 'asking reference';
   const eventLabel = source => source.eventDate ? `${source.type === 'sold' ? 'Sold' : 'Listed'} ${date(source.eventDate)}${source.eventDate < '2026-08-10' ? ' · older than three months' : ''}` : `${source.type === 'sold' ? 'Sale' : 'Listing'} date unknown`;
-  const syncBody = () => document.body.classList.toggle('modal-open', itemDialog.open || enquiryDialog.open);
+  const syncBody = () => document.body.classList.toggle('modal-open', itemDialog.open || enquiryDialog.open || buyerListDialog.open);
 
   function notify(message) {
     $('toast').textContent = message;
@@ -60,24 +67,101 @@
 
   function updateSaved() {
     $('saved-count').textContent = saved.size;
+    $('saved-view').setAttribute('aria-label', `My list, ${saved.size} ${saved.size === 1 ? 'entry' : 'entries'}`);
     document.querySelectorAll('[data-save]').forEach(button => {
       const code = button.dataset.save;
       const isSaved = saved.has(code);
       button.setAttribute('aria-pressed', String(isSaved));
-      button.setAttribute('aria-label', `${isSaved ? 'Remove' : 'Save'} ${byCode.get(code).name}${isSaved ? ' from saved items' : ''}`);
+      button.setAttribute('aria-label', `${isSaved ? 'Remove' : 'Add'} ${byCode.get(code).name}${isSaved ? ' from' : ' to'} my list`);
+      button.title = isSaved ? 'Remove from my list' : 'Add to my list';
       const label = button.querySelector('[data-save-label]');
-      if (label) label.textContent = isSaved ? 'Saved' : 'Save this piece';
+      if (label) label.textContent = isSaved ? 'In my list' : 'Add to my list';
     });
+    renderBuyerList();
+  }
+
+  function persistSaved() {
+    try { localStorage.setItem(storageKey, JSON.stringify([...saved])); storageAvailable = true; }
+    catch { storageAvailable = false; }
+  }
+
+  function renderBuyerList() {
+    $('buyer-list-count').textContent = `${saved.size} ${saved.size === 1 ? 'entry' : 'entries'}`;
+    $('buyer-list-storage').textContent = storageAvailable ? 'Your list saves automatically in this browser. Export a copy to keep a backup or open it on another device.' : 'This browser cannot save your list between visits. Export a copy before leaving so you can import it next time.';
+    $('buyer-list-storage').classList.toggle('storage-unavailable', !storageAvailable);
+    $('buyer-list-empty').hidden = saved.size !== 0;
+    for (const id of ['export-buyer-list', 'copy-saved', 'view-list-catalogue']) $(id).disabled = !saved.size;
+    if (!buyerListDialog.open) return;
+    $('buyer-list-items').innerHTML = [...saved].map(code => {
+      const item = byCode.get(code);
+      return `<li class="buyer-list-item"><img src="./${esc(item.image)}" width="66" height="82" alt="" loading="lazy"><div><span class="buyer-list-code">${esc(item.code)} · ${esc(item.family)}</span><a href="#${esc(item.code)}" data-open="${esc(item.code)}">${esc(item.name)}</a>${item.multiple ? '<small>Multiple figures pictured</small>' : ''}</div><button type="button" class="text-button list-remove" data-save="${esc(item.code)}" data-list-remove aria-label="Remove ${esc(item.name)} from my list">Remove</button></li>`;
+    }).join('');
+  }
+
+  function openBuyerList() {
+    $('list-transfer-status').hidden = true;
+    buyerListDialog.showModal();
+    $('saved-view').setAttribute('aria-expanded', 'true');
+    renderBuyerList();
+    syncBody();
+  }
+
+  function listTransferStatus(message, error = false) {
+    $('list-transfer-status').textContent = message;
+    $('list-transfer-status').classList.toggle('list-transfer-error', error);
+    $('list-transfer-status').hidden = false;
+  }
+
+  function downloadBuyerList() {
+    if (!saved.size) return;
+    const selected = [...saved].map(code => byCode.get(code));
+    const blob = new Blob([exportBuyerList(selected)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sonny-angel-buyer-list-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    listTransferStatus('Your list has been exported. Keep the JSON file and use Import list to restore it here or on another device.');
+  }
+
+  async function uploadBuyerList(event) {
+    const file = event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    $('import-buyer-list').disabled = true;
+    listTransferStatus('Importing your list…');
+    try {
+      if (file.size > 512 * 1024) throw new Error('This file is too large for a buyer list. Choose the JSON file exported from My list.');
+      const imported = importBuyerList(await file.text(), byCode);
+      const merged = mergeBuyerLists(saved, imported.codes);
+      saved = new Set(merged.codes);
+      persistSaved();
+      render();
+      const result = [`${merged.added} ${merged.added === 1 ? 'entry' : 'entries'} added`];
+      if (merged.existing) result.push(`${merged.existing} already in your list`);
+      if (imported.duplicates) result.push(`${imported.duplicates} ${imported.duplicates === 1 ? 'duplicate' : 'duplicates'} skipped`);
+      if (imported.unknownCodes.length) result.push(`${imported.unknownCodes.length} unknown ${imported.unknownCodes.length === 1 ? 'code' : 'codes'} skipped`);
+      listTransferStatus(result.join(' · ') + '. Your existing choices are kept.');
+    } catch (error) {
+      listTransferStatus(error.message || 'The file could not be imported. Your current list has not changed.', true);
+    } finally { $('import-buyer-list').disabled = false; }
   }
 
   function toggleSaved(code) {
     if (!byCode.has(code)) return;
     const isSaved = saved.has(code);
+    const focusedInList = buyerListDialog.open && document.activeElement?.hasAttribute('data-list-remove');
+    const oldCodes = [...saved];
+    const nextFocus = oldCodes[oldCodes.indexOf(code) + 1] || oldCodes[oldCodes.indexOf(code) - 1];
     if (isSaved) saved.delete(code); else saved.add(code);
-    try { localStorage.setItem(storageKey, JSON.stringify([...saved])); } catch { notify('Saved for this visit. Browser storage is unavailable.'); }
+    persistSaved();
     updateSaved();
     if (state.savedOnly) render();
-    notify(isSaved ? `${code} removed from saved items` : `${code} saved to your favourites`);
+    if (focusedInList) ($('buyer-list-items').querySelector(`[data-save="${nextFocus}"]`) || $('import-buyer-list')).focus();
+    notify((isSaved ? `${code} removed from your list.` : `${code} added to your list.`) + (storageAvailable ? '' : ' Export your list to keep it after this visit.'));
   }
 
   function referenceMarkup(item) {
@@ -119,14 +203,13 @@
     visible.forEach(item => fragment.append(cards.get(item.code)));
     $('collection-grid').append(fragment);
     const total = filtered.length;
-    $('results-count').textContent = `${state.savedOnly ? 'Saved · ' : ''}${total} ${total === 1 ? 'entry' : 'entries'}${total && total > visible.length ? ` · showing ${visible.length}` : ''}`;
+    $('results-count').textContent = `${state.savedOnly ? 'My list · ' : ''}${total} ${total === 1 ? 'entry' : 'entries'}${total && total > visible.length ? ` · showing ${visible.length}` : ''}`;
     $('empty-state').hidden = total !== 0;
     $('empty-title').textContent = priceRangeInvalid ? 'Check the price range.' : state.savedOnly && !saved.size ? 'A little space for your favourites.' : 'No little angels found.';
-    $('empty-text').textContent = priceRangeInvalid ? (negativePrice ? 'Prices need to be zero or greater.' : 'The minimum price needs to be no higher than the maximum price.') : state.savedOnly && !saved.size ? 'Tap a heart on any piece to save it here. Your list stays in this browser.' : 'Try another name, series or price range, or clear the filters to see everyone.';
+    $('empty-text').textContent = priceRangeInvalid ? (negativePrice ? 'Prices need to be zero or greater.' : 'The minimum price needs to be no higher than the maximum price.') : state.savedOnly && !saved.size ? 'Tap a heart on any piece to add it to My list. You can export and import your list whenever you like.' : 'Try another name, series or price range, or clear the filters to see everyone.';
     $('load-more-wrap').hidden = !total;
     $('load-more').hidden = visible.length >= total;
     $('visible-summary').textContent = `${visible.length} of ${total} entries shown`;
-    $('saved-view').setAttribute('aria-pressed', String(state.savedOnly));
     $('saved-actions').hidden = !state.savedOnly || !saved.size;
     $('reference-explainer').hidden = !state.references || priceControlsActive;
     $('price-filter-note').hidden = !priceControlsActive;
@@ -170,6 +253,7 @@
   function displayItem(code) {
     const item = byCode.get(code);
     if (!item) return;
+    if (buyerListDialog.open) buyerListDialog.close();
     currentCode = code;
     const tags = [item.uncertain ? '<span class="card-tag uncertain">Exact edition needs confirmation</span>' : '', item.custom ? '<span class="card-tag">Added outfit / accessories</span>' : '', item.multiple ? '<span class="card-tag">Multiple figures pictured</span>' : ''].join('');
     const relative = filtered.findIndex(entry => entry.code === code);
@@ -247,17 +331,33 @@
   $('reset').addEventListener('click', resetFilters);
   $('empty-reset').addEventListener('click', resetFilters);
   $('load-more').addEventListener('click', () => { state.limit += 48; render(); });
-  $('saved-view').addEventListener('click', () => {
-    const nextSaved = !state.savedOnly;
+  $('saved-view').addEventListener('click', openBuyerList);
+  $('manage-list').addEventListener('click', openBuyerList);
+  $('view-list-catalogue').addEventListener('click', () => {
+    buyerListDialog.close();
     resetFilters();
-    state.savedOnly = nextSaved;
+    state.savedOnly = true;
     render();
     $('collection').scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   });
   $('copy-saved').addEventListener('click', event => {
-    const selected = items.filter(item => saved.has(item.code));
-    const message = `Items I’d like to ask about within Thomass’s full-lot Sonny Angel collection:\n\n${selected.map(item => `${item.code} — ${item.name}`).join('\n')}\n\n${catalogueUrl()}\n\nI’m interested in discussing the collection as a lot and have a few questions about the pieces listed above.`;
-    copyText(message, event.currentTarget, 'Saved item list copied');
+    const selected = [...saved].map(code => byCode.get(code));
+    const message = `Hi! I’m interested in these pieces from Thomass’s Sonny Angel collection:\n\n${selected.map(item => `${item.code} — ${item.name}`).join('\n')}\n\n${catalogueUrl()}\n\nCould you confirm availability and discuss an offer?`;
+    copyText(message, event.currentTarget, 'Buyer list copied — paste it in your message to the seller');
+  });
+  $('close-buyer-list').addEventListener('click', () => buyerListDialog.close());
+  buyerListDialog.addEventListener('close', () => { $('saved-view').setAttribute('aria-expanded', 'false'); syncBody(); });
+  $('export-buyer-list').addEventListener('click', downloadBuyerList);
+  $('import-buyer-list').addEventListener('click', () => $('buyer-list-file').click());
+  $('buyer-list-file').addEventListener('change', uploadBuyerList);
+  window.addEventListener('storage', event => {
+    if (event.key !== storageKey && event.key !== null) return;
+    try {
+      const stored = JSON.parse(event.newValue || '[]');
+      if (!Array.isArray(stored)) return;
+      saved = new Set(stored.filter(code => byCode.has(code)));
+      render();
+    } catch { /* Ignore an invalid update from another tab. */ }
   });
   $('close-item').addEventListener('click', closeItem);
   $('previous-item').addEventListener('click', () => navigateItem(-1));

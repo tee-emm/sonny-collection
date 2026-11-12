@@ -11,10 +11,10 @@ The buying section shows two explicitly labelled research subtotals: CAD 54,483 
 ## Included
 
 - All 280 actual collection photographs, extracted unchanged from the owner’s research reports.
-- Search, series and category filters, CAD price sorting and ranges, price-evidence and photo-contents filters, saved favourites, and direct links to an entry.
+- Search, series and category filters, CAD price sorting and ranges, price-evidence and photo-contents filters, persistent buyer lists with JSON export/import, and direct links to an entry.
 - Packaging and accessory notes, added outfits, and edition uncertainty.
 - Optional market references labelled by geography, source type, event date, condition, source access and CAD conversion.
-- Enquiry text to copy and a downloadable CSV item list.
+- Copyable buyer lists for seller enquiries, full-lot enquiry text, and a downloadable CSV collection list.
 
 The latest revision is used when the same research batch occurs twice. Distinct collection entries with similar characters remain separate. Internal collection IDs, import hashes and administrative metadata are omitted from the public catalogue.
 
@@ -56,3 +56,11 @@ The layout source is `tools/template.html`, presentation is `styles.css`, and br
 The site reformats existing research; it does not independently recheck marketplace availability or authenticate owned figures. Source timestamps are research timestamps, not proof of recent sales. Unknown dates and uncertain identification remain visible. The user’s source and date preferences are preserved in the ordering and labels of the evidence.
 
 The photographs belong to the collection owner. Third-party source names and linked market references identify their original sources. This is a personal catalogue, not an official Sonny Angel store.
+
+## Buyer lists
+
+Visitors add or remove pieces with the heart buttons and open **My list** from the header. Selections persist in local storage on the same browser and origin, using the existing saved-items key so older favourites are retained. A visible notice explains when the browser cannot persist a list. Normal browsing does not require an account or send selections to a server.
+
+**Export list** downloads a versioned JSON file containing this collection’s identifier and selected item codes, names and series. **Import list** validates the file and merges matching codes without duplicates or deleting current choices. Unknown codes are skipped and reported; invalid or incompatible files leave the current list untouched. Imported display text and URLs are ignored. Export/import transfers a list between devices; it does not automatically sync devices or reserve figures.
+
+Run `npm test` for the transfer-format and merge tests, alongside the normal check/build commands.
