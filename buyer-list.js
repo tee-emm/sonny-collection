@@ -1,13 +1,34 @@
 export const BUYER_LIST_FORMAT = 'sonny-collection-buyer-list';
 export const BUYER_LIST_COLLECTION = 'tee-emm/sonny-collection';
 
-export function exportBuyerList(selectedItems, exportedAt = new Date().toISOString()) {
+export function estimateBuyerList(selectedItems, references) {
+  const uniqueItems = [...new Map(selectedItems.map(item => [item.code, item])).values()];
+  const entries = uniqueItems.map(item => {
+    const source = references.get(item.code);
+    const raw = source?.cad;
+    const amount = typeof raw === 'number' || (typeof raw === 'string' && raw.trim()) ? Number(raw) : NaN;
+    const priced = !item.multiple && Number.isFinite(amount) && amount >= 0;
+    return { code: item.code, cents: priced ? Math.round((amount + Number.EPSILON) * 100) : null, reason: item.multiple ? 'group' : priced ? null : 'missing-reference' };
+  });
+  const priced = entries.filter(entry => entry.cents !== null);
+  return {
+    currency: 'CAD',
+    totalCAD: priced.length ? priced.reduce((total, entry) => total + entry.cents, 0) / 100 : null,
+    pricedCount: priced.length,
+    unpricedCount: entries.length - priced.length,
+    entries,
+  };
+}
+
+export function exportBuyerList(selectedItems, exportedAt = new Date().toISOString(), estimate = null) {
+  const costs = new Map((estimate?.entries || []).map(entry => [entry.code, entry]));
   return JSON.stringify({
     format: BUYER_LIST_FORMAT,
     version: 1,
     collection: BUYER_LIST_COLLECTION,
     exportedAt,
-    items: selectedItems.map(({ code, name, series }) => ({ code, name, series })),
+    ...(estimate ? { estimatedCost: { currency: 'CAD', amount: estimate.totalCAD, pricedEntries: estimate.pricedCount, unpricedEntries: estimate.unpricedCount, note: 'Recorded comparison-price estimate. Excludes unpriced entries, shipping, tax and fees; final price to be agreed with the seller.' } } : {}),
+    items: selectedItems.map(({ code, name, series }) => ({ code, name, series, ...(estimate ? { estimatedCostCAD: costs.get(code)?.cents === null || !costs.has(code) ? null : costs.get(code).cents / 100 } : {}) })),
   }, null, 2) + '\n';
 }
 

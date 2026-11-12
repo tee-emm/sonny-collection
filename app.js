@@ -1,4 +1,4 @@
-import { exportBuyerList, importBuyerList, mergeBuyerLists } from './buyer-list.js';
+import { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList } from './buyer-list.js';
 
 (() => {
   'use strict';
@@ -86,7 +86,14 @@ import { exportBuyerList, importBuyerList, mergeBuyerLists } from './buyer-list.
   }
 
   function renderBuyerList() {
+    const selected = [...saved].map(code => byCode.get(code));
+    const estimate = estimateBuyerList(selected, priceReferences);
+    const costs = new Map(estimate.entries.map(entry => [entry.code, entry]));
     $('buyer-list-count').textContent = `${saved.size} ${saved.size === 1 ? 'entry' : 'entries'}`;
+    $('buyer-list-estimate').hidden = !saved.size;
+    $('buyer-list-estimate-label').textContent = estimate.unpricedCount ? 'Estimated subtotal · priced entries' : 'Estimated cost';
+    $('buyer-list-estimate-total').textContent = estimate.totalCAD === null ? 'Price to confirm' : `C${money(estimate.totalCAD)}`;
+    $('buyer-list-estimate-coverage').textContent = `${estimate.pricedCount} of ${saved.size} ${saved.size === 1 ? 'entry' : 'entries'} priced${estimate.unpricedCount ? ` · ${estimate.unpricedCount} ${estimate.unpricedCount === 1 ? 'needs' : 'need'} a quote` : ''}.${estimate.entries.some(entry => entry.reason === 'group') ? ' Group photos need a confirmed quantity and price.' : ''}`;
     $('buyer-list-storage').textContent = storageAvailable ? 'Your list saves automatically in this browser. Export a copy to keep a backup or open it on another device.' : 'This browser cannot save your list between visits. Export a copy before leaving so you can import it next time.';
     $('buyer-list-storage').classList.toggle('storage-unavailable', !storageAvailable);
     $('buyer-list-empty').hidden = saved.size !== 0;
@@ -94,7 +101,9 @@ import { exportBuyerList, importBuyerList, mergeBuyerLists } from './buyer-list.
     if (!buyerListDialog.open) return;
     $('buyer-list-items').innerHTML = [...saved].map(code => {
       const item = byCode.get(code);
-      return `<li class="buyer-list-item"><img src="./${esc(item.image)}" width="66" height="82" alt="" loading="lazy"><div><span class="buyer-list-code">${esc(item.code)} · ${esc(item.family)}</span><a href="#${esc(item.code)}" data-open="${esc(item.code)}">${esc(item.name)}</a>${item.multiple ? '<small>Multiple figures pictured</small>' : ''}</div><button type="button" class="text-button list-remove" data-save="${esc(item.code)}" data-list-remove aria-label="Remove ${esc(item.name)} from my list">Remove</button></li>`;
+      const cost = costs.get(code);
+      const price = cost.cents === null ? (cost.reason === 'group' ? 'Group price to confirm' : 'Price to confirm') : `C${money(cost.cents / 100)} estimated`;
+      return `<li class="buyer-list-item"><img src="./${esc(item.image)}" width="66" height="82" alt="" loading="lazy"><div><span class="buyer-list-code">${esc(item.code)} · ${esc(item.family)}</span><a href="#${esc(item.code)}" data-open="${esc(item.code)}">${esc(item.name)}</a><span class="buyer-list-price${cost.cents === null ? ' needs-quote' : ''}">${price}</span>${item.multiple ? '<small>Multiple figures pictured</small>' : ''}</div><button type="button" class="text-button list-remove" data-save="${esc(item.code)}" data-list-remove aria-label="Remove ${esc(item.name)} from my list">Remove</button></li>`;
     }).join('');
   }
 
@@ -115,7 +124,8 @@ import { exportBuyerList, importBuyerList, mergeBuyerLists } from './buyer-list.
   function downloadBuyerList() {
     if (!saved.size) return;
     const selected = [...saved].map(code => byCode.get(code));
-    const blob = new Blob([exportBuyerList(selected)], { type: 'application/json' });
+    const estimate = estimateBuyerList(selected, priceReferences);
+    const blob = new Blob([exportBuyerList(selected, new Date().toISOString(), estimate)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -342,7 +352,16 @@ import { exportBuyerList, importBuyerList, mergeBuyerLists } from './buyer-list.
   });
   $('copy-saved').addEventListener('click', event => {
     const selected = [...saved].map(code => byCode.get(code));
-    const message = `Hi! I’m interested in these pieces from Thomass’s Sonny Angel collection:\n\n${selected.map(item => `${item.code} — ${item.name}`).join('\n')}\n\n${catalogueUrl()}\n\nCould you confirm availability and discuss an offer?`;
+    const estimate = estimateBuyerList(selected, priceReferences);
+    const costs = new Map(estimate.entries.map(entry => [entry.code, entry]));
+    const lines = selected.map(item => {
+      const cost = costs.get(item.code);
+      const price = cost.cents === null ? 'price to confirm' : `C${money(cost.cents / 100)} estimated`;
+      return `${item.code} — ${item.name} — ${price}`;
+    });
+    const total = estimate.totalCAD === null ? 'Estimated cost: price to confirm.' : `Estimated ${estimate.unpricedCount ? 'subtotal for priced entries' : 'cost'}: C${money(estimate.totalCAD)}.`;
+    const coverage = `${estimate.pricedCount} of ${saved.size} entries priced${estimate.unpricedCount ? `; ${estimate.unpricedCount} need a quote` : ''}.`;
+    const message = `Hi! I’m interested in these pieces from Thomass’s Sonny Angel collection:\n\n${lines.join('\n')}\n\n${total} ${coverage}\nBased on recorded market comparisons; excludes shipping, tax and fees.\n\n${catalogueUrl()}\n\nCould you confirm availability and the final price?`;
     copyText(message, event.currentTarget, 'Buyer list copied — paste it in your message to the seller');
   });
   $('close-buyer-list').addEventListener('click', () => buyerListDialog.close());

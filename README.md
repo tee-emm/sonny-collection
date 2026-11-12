@@ -64,3 +64,9 @@ Visitors add or remove pieces with the heart buttons and open **My list** from t
 **Export list** downloads a versioned JSON file containing this collection’s identifier and selected item codes, names and series. **Import list** validates the file and merges matching codes without duplicates or deleting current choices. Unknown codes are skipped and reported; invalid or incompatible files leave the current list untouched. Imported display text and URLs are ignored. Export/import transfers a list between devices; it does not automatically sync devices or reserve figures.
 
 Run `npm test` for the transfer-format and merge tests, alongside the normal check/build commands.
+
+### Saved-list estimates
+
+My list shows a CAD estimate and a price for each eligible selected entry, using the same recorded per-unit comparisons as price sorting. Totals add rounded cents and count each selected code once. Missing prices are excluded and the display gives the priced-entry coverage; group photos need a confirmed quantity and quote before they can be included. A wholly unpriced list shows “Price to confirm”. Shipping, tax and fees are excluded.
+
+The copyable seller message and JSON export include the estimate and any missing coverage. Imported prices are ignored and recalculated from current catalogue references. These are market-reference estimates, not seller asking prices or guaranteed quotes.

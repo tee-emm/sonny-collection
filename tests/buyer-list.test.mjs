@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { exportBuyerList, importBuyerList, mergeBuyerLists } from '../buyer-list.js';
+import { exportBuyerList, importBuyerList, mergeBuyerLists, estimateBuyerList } from '../buyer-list.js';
 
 const pieces = [
   { code: 'SA-0117', name: 'Yellow Daruma', series: 'Japanese Good Luck' },
@@ -47,4 +47,51 @@ test('imported display text is ignored and only known item codes are returned', 
 
 test('UTF-8 BOM and an empty selection are valid portable exports', () => {
   assert.deepEqual(importBuyerList('\uFEFF' + exportBuyerList([]), known).codes, []);
+});
+
+test('selected prices add in cents and duplicates are counted only once', () => {
+  const references = new Map([['SA-0117', { cad: '0.10' }], ['SA-0149', { cad: '0.20' }]]);
+  const estimate = estimateBuyerList([...pieces, pieces[0]], references);
+  assert.equal(estimate.totalCAD, 0.3);
+  assert.equal(estimate.pricedCount, 2);
+  assert.equal(estimate.unpricedCount, 0);
+  assert.equal(estimateBuyerList([pieces[1]], references).totalCAD, 0.2);
+});
+
+test('a partially priced list reports a subtotal and its missing coverage', () => {
+  const estimate = estimateBuyerList(pieces, new Map([['SA-0117', { cad: '375.00' }]]));
+  assert.equal(estimate.totalCAD, 375);
+  assert.equal(estimate.pricedCount, 1);
+  assert.equal(estimate.unpricedCount, 1);
+  assert.equal(estimate.entries[1].reason, 'missing-reference');
+});
+
+test('group photos are not charged a single-figure price without a confirmed quantity', () => {
+  const estimate = estimateBuyerList([{ ...pieces[0], multiple: true }], new Map([['SA-0117', { cad: '100' }]]));
+  assert.equal(estimate.totalCAD, null);
+  assert.equal(estimate.unpricedCount, 1);
+  assert.equal(estimate.entries[0].reason, 'group');
+});
+
+test('empty and wholly unpriced lists do not look free, while a recorded zero is valid', () => {
+  assert.equal(estimateBuyerList([], new Map()).totalCAD, null);
+  for (const cad of [null, undefined, '', ' ', false, 'invalid', Infinity, '-1']) {
+    assert.equal(estimateBuyerList([pieces[0]], new Map([['SA-0117', { cad }]])).totalCAD, null);
+  }
+  assert.equal(estimateBuyerList([pieces[0]], new Map([['SA-0117', { cad: 0 }]])).totalCAD, 0);
+});
+
+test('exports include the estimate, while importing recalculates using current catalogue prices', () => {
+  const estimate = estimateBuyerList(pieces, new Map([['SA-0117', { cad: '375' }]]));
+  const output = JSON.parse(exportBuyerList(pieces, '2026-11-11T23:00:00Z', estimate));
+  assert.equal(output.estimatedCost.amount, 375);
+  assert.equal(output.estimatedCost.unpricedEntries, 1);
+  assert.equal(output.items[0].estimatedCostCAD, 375);
+  assert.equal(output.items[1].estimatedCostCAD, null);
+  output.estimatedCost.amount = 1;
+  output.items[0].estimatedCostCAD = 1;
+  const imported = importBuyerList(JSON.stringify(output), known);
+  const currentItems = imported.codes.map(code => pieces.find(item => item.code === code));
+  const recalculated = estimateBuyerList(currentItems, new Map([['SA-0117', { cad: '400' }]]));
+  assert.equal(recalculated.totalCAD, 400);
 });
